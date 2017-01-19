@@ -3,11 +3,13 @@
 # 
 # awk 'NF<6 {split($1,a,".");split($2,b,".");print a[3],b[3],$5,$0}' xcorDelays4.txt > xcorDelays4Formatted.txt
 import argparse
+from obspy.taup.tau import TauPyModel
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description='Calculates differential arrival times')
     parser.add_argument('-e','--evinfo',type=str,help='file with event information',required=True)
     parser.add_argument('-o','--outfile',type=str,help='write output to a file')
+    parser.add_argument('-v','--verbose',action='store_true',help='verbose output')
     parser.add_argument('FILES',nargs='+')
     args=parser.parse_args()
 
@@ -86,6 +88,10 @@ if __name__=='__main__':
     before=10.0
     after=20.0
     
+    #limit for difference in cross correlation waveforms start times
+    sync_tolerance=0.01 #secs
+    
+    toolbar_width=40
     #cross correlation shift length
     #1/2 * window length
     #shiftlen=7500
@@ -113,10 +119,23 @@ if __name__=='__main__':
     evsec=int(ev['time'][4:6])
     evmsec=int(ev['time'][7:8])*1000
     evtime=UTCDateTime(year=evyear,julday=evjulday,hour=evhour,minute=evmin,second=evsec,microsecond=evmsec)
-
-  
+    
+    
+    #initialize progress bar:
+    nfiles=len(args.FILES)**2
+    iprocprev=0
+    sys.stdout.write("Progress: [%s]" % (" " * toolbar_width))
+    sys.stdout.flush()
+    sys.stdout.write("\b" * (toolbar_width+1))
+    ifile=0
+    
+    #create travel time calculator object
+    taupmodel=TauPyModel(model='ak135')
+    
     for bhz1File in args.FILES:
-      print "reading",bhz1File
+      if args.verbose:
+          print "reading",bhz1File
+      
       st1=read(bhz1File)
       tr1=st1[0]
       
@@ -139,43 +158,41 @@ if __name__=='__main__':
       
       
       try:
-        tt1=getTravelTimes(delta=gcarc1, depth=tr1.stats.sac.evdp, model='ak135',phase_list=['P'])[0]['time']
+        #tt1=getTravelTimes(delta=gcarc1, depth=tr1.stats.sac.evdp, model='ak135',phase_list=['P'])[0]['time']
+        tt1=taupmodel.get_travel_times(tr1.stats.sac.evdp, gcarc1, ['P'])[0].time
       except:
-        print "WARNING: Can\'t calculate travel time, skipping",tr1
+        print "WARNING: Can\'t calculate travel time, skipping (No P arrival for distance:",gcarc1,")",bhz1File
         continue
       
 
       tr1.stats.sac.t1=evtime+tt1
       tr1.trim(tr1.stats.sac.t1-before, tr1.stats.sac.t1+after)
-      crossNpts=len(tr1.data)/(crossDelta/tr1.stats.delta)
-      #sys.exit()
-      crossData1=scipy.signal.resample(tr1.data,crossNpts)
+      
+      try:
+          crossNpts=len(tr1.data)/(crossDelta/tr1.stats.delta)
+          #sys.exit()
+          
+          crossData1=scipy.signal.resample(tr1.data,crossNpts)
+      except:
+          print "Problem resampling, skipping",bhz1File
+          
+          
       if tr1.stats.station not in delaydict:
           delaydict[tr1.stats.station]={}
       
       for bhz2File in args.FILES:
-        print "reading",bhz2File        
+        ifile+=1
+        if args.verbose:
+            print "reading",bhz2File
+        else:
+            iproc=int(float(ifile)/nfiles*40.)
+            if iproc>iprocprev:
+                sys.stdout.write('#'*(iproc-iprocprev))
+                sys.stdout.flush()
+                iprocprev=iproc
+                   
         st2=read(bhz2File)
-        tr2=st2[0]
-        #tr2.stats.delays=[]
-        #print "st1: ",st1
-        #print "st2: ",st2
-        #if tr1.stats.sac.t1==-12345 or \
-        #tr2.stats.sac.t1==-12345 or \
-        # print bhz1File,".t1: ",tr1.stats.sac.t1,bhz2File,".t1: ",bhz1File,".t2: ",tr1.stats.sac.t2,bhz2File,".t2: ",tr2.stats.sac.t2
-        # continue
-        
-
-        
-            
-        
-        #print "crossData1= ",-tr1.stats.sac.b/crossDelta
-        #print "crossData2= ",-tr2.stats.sac.b/crossDelta
-    
-        #print "tr1.stats.sac.b ", tr1.stats.sac.b, ", tr2.stats.sac.b ", tr2.stats.sac.b
-        #print "crossData1: ",len(crossData1)
-        #print "crossData2: ",len(crossData2)
-        
+        tr2=st2[0]  
         
         try:
           #calculate GCARC (for some reason obspy does not read gcarc header)
@@ -186,9 +203,10 @@ if __name__=='__main__':
           
           print "delta=",gcarc2,"depth=",tr2.stats.sac.evdp
         try:
-          tt2=getTravelTimes(delta=gcarc2, depth=tr2.stats.sac.evdp, model='ak135',phase_list=['P'])[0]['time']
+          #tt2=getTravelTimes(delta=gcarc2, depth=tr2.stats.sac.evdp, model='ak135',phase_list=['P'])[0]['time']
+          tt2=taupmodel.get_travel_times(tr2.stats.sac.evdp, gcarc2, ['P'])[0].time
         except:
-          print "WARNING: Can\'t calculate event distance, skipping",tr2
+          print "WARNING: Can\'t calculate travel time, skipping (No P arrival for distance:",gcarc2,")",bhz2File
           continue
         
         tr2.stats.sac.t1=evtime+tt2
@@ -197,12 +215,15 @@ if __name__=='__main__':
         tr2.trim(tr1.stats.sac.t1-before, tr1.stats.sac.t1+after)
          
                 #make sure start times are equal
-        if tr1.stats.starttime!=tr2.stats.starttime:
+        if abs(tr1.stats.starttime-tr2.stats.starttime)>sync_tolerance:
           #I can fix this
-          print "start times are not synced, skipping"
+          print "WARNING: starttimes diff>"+sync_tolerance+" skipping",bhz1File,bhz2File,tr1.stats.starttime,tr1.stats.starttime-tr2.stats.starttime
           continue 
-           
-        crossData2=scipy.signal.resample(tr2.data,crossNpts)
+        
+        try:
+            crossData2=scipy.signal.resample(tr2.data,crossNpts)
+        except:
+            print "Problem resampling, skipping",bhz2File
         
         maxInd,maxval=obspy.signal.cross_correlation.xcorr(crossData1,crossData2,shiftlen)
         
@@ -212,20 +233,56 @@ if __name__=='__main__':
         deldel=t2del-t1del
         #delays.append([tr1.__str__(),tr2.__str__(),tr1.stats.station,tr2.stats.station,t2del,t1del,deldel,maxval])
         #stcut.append(tr2)
-        pairstr=tr1.stats.station+'_'+tr2.stats.station
-        if pairstr not in delaydict[tr1.stats.station]:
-            delaydict[tr1.stats.station][tr2.stats.station]=[[],{}]
-        delaydict[tr1.stats.station][tr2.stats.station][1]['t1del']=t1del    
-        delaydict[tr1.stats.station][tr2.stats.station][1]['t2del']=t2del
-        delaydict[tr1.stats.station][tr2.stats.station][1]['deldel']=deldel
-        delaydict[tr1.stats.station][tr2.stats.station][1]['maxval']=maxval
-        stsum=obspy.core.stream.Stream()
-        stsum.append(tr1)
-        stsum.append(tr2)
-        delaydict[tr1.stats.station][tr2.stats.station].append(stsum)
+        #pairstr=tr1.stats.station+'_'+tr2.stats.station
         
-        print bhz1File, bhz2File, t2del, t1del, deldel, maxval
+        if tr2.stats.station not in delaydict[tr1.stats.station]:
+            delaydict[tr1.stats.station][tr2.stats.station]={}
+            delaydict[tr1.stats.station][tr2.stats.station]['t1del']=t1del    
+            delaydict[tr1.stats.station][tr2.stats.station]['t2del']=t2del
+            delaydict[tr1.stats.station][tr2.stats.station]['deldel']=deldel
+            delaydict[tr1.stats.station][tr2.stats.station]['maxval']=maxval
+            delaydict[tr1.stats.station][tr2.stats.station]['sac1']=bhz1File
+            delaydict[tr1.stats.station][tr2.stats.station]['sac2']=bhz2File
+            delaydict[tr1.stats.station][tr2.stats.station]['starttime']=tr1.stats.starttime
+            delaydict[tr1.stats.station][tr2.stats.station]['endtime']=tr1.stats.endtime
+        else:
+            print "WARNING: station pair",tr1.stats.station,tr2.stats.station,"already in record"
+            
+      
+        if args.verbose:
+            print bhz1File, bhz2File, t2del, t1del, deldel, maxval
         #print tr1.stats.station, tr2.stats.station, t2del, t1del, deldel
-
+    sys.stdout.write(']\n')
+    sys.stdout.flush()
     
-    #print delays
+    pickle.dump(delaydict,open(dirname+'.pickle','wb'))
+    
+    #convert dict to numpy structured array
+    with open(dirname+'.txt','w') as f:
+        delaylist=[]
+        for st1 in delaydict:
+            for st2 in delaydict[st1]:
+                line=[]
+                line.append(st1)
+                line.append(st2)
+                line.append(delaydict[st1][st2]['t1del'])
+                line.append(delaydict[st1][st2]['t2del'])
+                line.append(delaydict[st1][st2]['deldel'])
+                line.append(delaydict[st1][st2]['maxval'])
+                line.append(delaydict[st1][st2]['sac1'])
+                line.append(delaydict[st1][st2]['sac2'])
+                line.append(delaydict[st1][st2]['starttime'])
+                line.append(delaydict[st1][st2]['endtime'])
+                #print st1,st2,delaydict[st1][st2][valname]
+                    #break
+                f.write(" ".join(map(str,line))+"\n")
+                delaylist.append(line)
+                
+        
+    
+    
+    
+    
+    
+    
+    
