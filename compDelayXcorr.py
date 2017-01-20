@@ -245,6 +245,8 @@ if __name__=='__main__':
             delaydict[tr1.stats.station][tr2.stats.station]['sac2']=bhz2File
             delaydict[tr1.stats.station][tr2.stats.station]['starttime']=tr1.stats.starttime
             delaydict[tr1.stats.station][tr2.stats.station]['endtime']=tr1.stats.endtime
+            #delaydict[tr1.stats.station][tr2.stats.station]['baz']=tr1.stats.sac.baz
+            delaydict[tr1.stats.station][tr2.stats.station]['gcarc1']=gcarc1
         else:
             print "WARNING: station pair",tr1.stats.station,tr2.stats.station,"already in record"
             
