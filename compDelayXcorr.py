@@ -175,6 +175,7 @@ if __name__=='__main__':
           crossData1=scipy.signal.resample(tr1.data,crossNpts)
       except:
           print "Problem resampling, skipping",bhz1File
+          continue
           
           
       if tr1.stats.station not in delaydict:
@@ -224,6 +225,7 @@ if __name__=='__main__':
             crossData2=scipy.signal.resample(tr2.data,crossNpts)
         except:
             print "Problem resampling, skipping",bhz2File
+            continue
         
         maxInd,maxval=obspy.signal.cross_correlation.xcorr(crossData1,crossData2,shiftlen)
         
@@ -248,7 +250,8 @@ if __name__=='__main__':
             try:
                 delaydict[tr1.stats.station][tr2.stats.station]['baz']=tr1.stats.sac.baz
             except:
-                print "WARNING: No BAZ in SAC file",bhz1File,
+                if args.verbose:
+                    print "WARNING: No BAZ in SAC file",bhz1File
                 delaydict[tr1.stats.station][tr2.stats.station]['baz']=-12345
             
             delaydict[tr1.stats.station][tr2.stats.station]['gcarc1']=gcarc1
