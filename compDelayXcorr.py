@@ -245,7 +245,12 @@ if __name__=='__main__':
             delaydict[tr1.stats.station][tr2.stats.station]['sac2']=bhz2File
             delaydict[tr1.stats.station][tr2.stats.station]['starttime']=tr1.stats.starttime
             delaydict[tr1.stats.station][tr2.stats.station]['endtime']=tr1.stats.endtime
-            #delaydict[tr1.stats.station][tr2.stats.station]['baz']=tr1.stats.sac.baz
+            try:
+                delaydict[tr1.stats.station][tr2.stats.station]['baz']=tr1.stats.sac.baz
+            except:
+                print "WARNING: No BAZ in SAC file",bhz1File,
+                delaydict[tr1.stats.station][tr2.stats.station]['baz']=-12345
+            
             delaydict[tr1.stats.station][tr2.stats.station]['gcarc1']=gcarc1
         else:
             print "WARNING: station pair",tr1.stats.station,tr2.stats.station,"already in record"
@@ -275,6 +280,7 @@ if __name__=='__main__':
                 line.append(delaydict[st1][st2]['sac2'])
                 line.append(delaydict[st1][st2]['starttime'])
                 line.append(delaydict[st1][st2]['endtime'])
+                line.append(delaydict[st1][st2]['baz'])
                 #print st1,st2,delaydict[st1][st2][valname]
                     #break
                 f.write(" ".join(map(str,line))+"\n")
