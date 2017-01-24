@@ -47,7 +47,7 @@ def haversine(lat1,lon1,lat2,lon2):
 def haversineD(lat1,lon1,lat2,lon2):
     """
     haversine(lat1,lon1,lat2,lon2):
-    Return distance in kilometers
+    Return distance in degrees
     """
     
     
@@ -88,6 +88,20 @@ if __name__=='__main__':
     before=10.0
     after=20.0
     
+    
+    #skip counters, filename as keys
+    #no travel time
+    n_badtt={}
+    #no distance
+    n_badgcarc={}
+    #no data in window
+    n_badwin={}
+    #no sync
+    n_nosync={}
+    #no BAZ
+    n_nobaz={}
+    
+    
     #limit for difference in cross correlation waveforms start times
     sync_tolerance=0.01 #secs
     
@@ -109,7 +123,7 @@ if __name__=='__main__':
     try:
         ev=evdict[dirname]
     except:
-        print "ERROR: event "+dirname+" is not in the database, skipping"
+        print "ERROR: event "+dirname+" is not in the database, quitting"
         sys.exit(1)
     
     evyear=int(ev['year'])
@@ -149,8 +163,9 @@ if __name__=='__main__':
         #calculate GCARC (for some reason obspy does not read gcarc header)
         gcarc1=haversineD(tr1.stats.sac.evla, tr1.stats.sac.evlo, tr1.stats.sac.stla, tr1.stats.sac.stlo)
       except:
-        print "WARNING: Can\'t calculate event distance, quitting",tr1
-        continue
+        print "ERROR: Can\'t calculate event distance, quitting",tr1
+        #unlikely that any other station will have a P arrival, so break
+        sys.exit(1)
       
         
         print "delta=",gcarc1,"depth=",tr1.stats.sac.evdp
@@ -167,6 +182,11 @@ if __name__=='__main__':
 
       tr1.stats.sac.t1=evtime+tt1
       tr1.trim(tr1.stats.sac.t1-before, tr1.stats.sac.t1+after)
+      if len(tr1.data)==0:
+          if args.verbose:
+              print "WARNING: no data within window, skipping",bhz1File
+          continue
+          
       
       try:
           crossNpts=len(tr1.data)/(crossDelta/tr1.stats.delta)
@@ -214,7 +234,11 @@ if __name__=='__main__':
         tr2.data=tr2.data-tr2.stats.sac.depmen
         #tr2.data=tr2.data[-tr2.stats.sac.b/tr2.stats.delta:]
         tr2.trim(tr1.stats.sac.t1-before, tr1.stats.sac.t1+after)
-         
+        
+        if len(tr2.data)==0:
+            if args.verbose:
+                print "WARNING: no data within window, skipping",bhz2File
+            continue
                 #make sure start times are equal
         if abs(tr1.stats.starttime-tr2.stats.starttime)>sync_tolerance:
           #I can fix this
@@ -225,6 +249,7 @@ if __name__=='__main__':
             crossData2=scipy.signal.resample(tr2.data,crossNpts)
         except:
             print "Problem resampling, skipping",bhz2File
+            sys.exit()
             continue
         
         maxInd,maxval=obspy.signal.cross_correlation.xcorr(crossData1,crossData2,shiftlen)

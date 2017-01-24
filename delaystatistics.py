@@ -5,6 +5,16 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import re
+import pickle
+
+def get_content(re1,dict1):
+    
+    cont={}
+    for key in dict1:
+        if re.match(re1,key):
+            cont[key]=dict1[key]
+    return cont
 
 def plot_delays(delaydict):
     
@@ -75,7 +85,7 @@ def shed_outliers(delaydict,col='deldel',std_lim=1,n_iter=2):
 
 if __name__=='__main__':
     
-    parser=argparse.ArgumentParser(description='Calculates differential arrival times')
+    parser=argparse.ArgumentParser(description='Calculates differential arrival times statistics')
     parser.add_argument('-o','--outfile',type=str,help='write output to a file')
     parser.add_argument('-v','--verbose',action='store_true',help='verbose output')
     parser.add_argument('FILES',nargs='+')
@@ -84,8 +94,8 @@ if __name__=='__main__':
     
     delaydict={}
     
-    colnames=['t1del','t2del','deldel','maxval']
-    dtypes=['f4','f4','f4','f4']
+    colnames=['t1del','t2del','deldel','maxval','baz']
+    dtypes=['f4','f4','f4','f4','f4']
     dtype=zip(colnames,dtypes)
     
     #parse and gather txt files
@@ -98,11 +108,11 @@ if __name__=='__main__':
                 #if line[1] not in delaydict[line[0]]:
                 #    delaydict[line[0]][line[1]]=np.array([],dtype=dtype)
                 
-                deldel=np.array(tuple(line[2:6]),dtype=dtype)
+                deldel=np.array(tuple(line[2:6]+[line[-1]]),dtype=dtype)
                 delaydict[line[0]+"_"+line[1]]=np.append(delaydict[line[0]+"_"+line[1]],deldel)
            
 
-    
+    pickle.dump(delaydict,open('delays_collected.pickle','wb'))
              
     #for st1 in delaydict:
     #    for st2 in delaydict[st1]:
