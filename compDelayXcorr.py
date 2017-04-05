@@ -7,9 +7,10 @@ from obspy.taup.tau import TauPyModel
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description='Calculates differential arrival times')
-    parser.add_argument('-e','--evinfo',type=str,help='file with event information',required=True)
-    parser.add_argument('-o','--outfile',type=str,help='write output to a file')
+    parser.add_argument('-e','--evinfo',type=str,help='File with event information',required=True)
+    parser.add_argument('-o','--outfile',type=str,help='Write output to a file')
     parser.add_argument('-v','--verbose',action='store_true',help='verbose output')
+    parser.add_argument('-d','--station-db',type=str,help='Use a TSV file for station info and not the SAC file')
     parser.add_argument('FILES',nargs='+')
     args=parser.parse_args()
 
@@ -25,6 +26,10 @@ import os
 import sys
 import pickle
   
+VEL_MODEL_FILE_NPZ='/Users/gulyamani/research/faultLab/sakarya.npz'
+VEL_MODEL_FILE_TVEL='/Users/gulyamani/research/faultLab/sakarya.tvel'
+
+
 def haversine(lat1,lon1,lat2,lon2):
     """
     haversine(lat1,lon1,lat2,lon2):
@@ -64,19 +69,32 @@ def haversineD(lat1,lon1,lat2,lon2):
     return c * 180 / math.pi
 
 def parseEventDb(eventDbFile):
-  #parse event catalog into a dictionary 
-  colnames=['year','julday','time','depth','evla','evlo','evmag','evmag2']
-  dtypes=['i','i','S8','f','f','f','f','f']
-  dtype=zip(colnames,dtypes)
-  evdb=np.genfromtxt(eventDbFile, dtype=dtype,)
-  evdict={}
-  
-  for ev in evdb:
-    dirname="_".join([str(ev['year']),"%03d" % ev['julday'],ev['time'],"M"+"%2.1f"%ev['evmag']])
-    evdict[dirname]=ev
-  
-  
-  return evdict
+    #parse event catalog into a dictionary 
+    colnames=['year','julday','time','depth','evla','evlo','evmag','evmag2']
+    dtypes=['i','i','S8','f','f','f','f','f']
+    dtype=zip(colnames,dtypes)
+    evdb=np.genfromtxt(eventDbFile, dtype=dtype,)
+    evdict={}
+      
+    for ev in evdb:
+        dirname="_".join([str(ev['year']),"%03d" % ev['julday'],ev['time'],"M"+"%2.1f"%ev['evmag']])
+        evdict[dirname]=ev
+      
+      
+    return evdict
+
+def parseStationDb(stationDbFile):
+    colnames=['stname','stlat','stlon','stel']
+    dtypes=['S8','f','f','f']
+    dtype=zip(colnames,dtypes)
+    stdb=np.genfromtxt(stationDbFile, dtype=dtype,)
+    stdict={}
+    
+    for st in stdb:
+        stdict[st['stname']]=st
+
+    return stdict
+
 
 if __name__=='__main__':
 
@@ -126,6 +144,14 @@ if __name__=='__main__':
         print "ERROR: event "+dirname+" is not in the database, quitting"
         sys.exit(1)
     
+    if args.station_db:
+        try:
+            stdict=parseStationDb(args.station_db)
+        except:
+            print "ERROR: station database"+args.station_db+" can't be read"
+            sys.exit(1)
+    
+    
     evyear=int(ev['year'])
     evjulday=int(ev['julday'])
     evhour=int(ev['time'][0:2])
@@ -144,7 +170,13 @@ if __name__=='__main__':
     ifile=0
     
     #create travel time calculator object
-    taupmodel=TauPyModel(model='ak135')
+    taupmodel=TauPyModel(model=VEL_MODEL_FILE_NPZ)
+    
+    with open(VEL_MODEL_FILE_TVEL,'r') as f:
+        s=f.readlines()
+    
+    #get top P velocity
+    top_vel=float(s[2].split()[1])
     
     for bhz1File in args.FILES:
       if args.verbose:
@@ -174,7 +206,26 @@ if __name__=='__main__':
       
       try:
         #tt1=getTravelTimes(delta=gcarc1, depth=tr1.stats.sac.evdp, model='ak135',phase_list=['P'])[0]['time']
-        tt1=taupmodel.get_travel_times(tr1.stats.sac.evdp, gcarc1, ['P'])[0].time
+        ar1=taupmodel.get_travel_times(tr1.stats.sac.evdp, gcarc1, ['P'])[0]
+        in_angle1_rad=np.deg2rad(ar1.incident_angle)
+        #extra travel time due to elevation
+        if args.station_db:
+            try:
+                stel1=stdict[tr1.stats.station]['stel']/1000.
+            except:
+                print "WARNING: No elevation for station",tr2.stats.station,"in database file",args.station_db,", skipping"
+                continue
+        else:
+            try:
+                stel1=tr1.stats.sac.stel/1000.
+            except:
+                print "WARNING: No elevation for station",tr1.stats.station,"in SAC file",bhz1file,", skipping"
+                continue
+        
+        tt1_pos=np.cos(in_angle1_rad)/top_vel*stel1
+        tt1=ar1.time+tt1_pos
+        if args.verbose:
+            print 'station elevation:',stel1,'incident angle:',ar1.incident_angle,'travel time:',ar1.time,'elevation time:',tt1_pos
       except:
         print "WARNING: Can\'t calculate travel time, skipping (No P arrival for distance:",gcarc1,")",bhz1File
         continue
@@ -224,8 +275,30 @@ if __name__=='__main__':
           
           print "delta=",gcarc2,"depth=",tr2.stats.sac.evdp
         try:
-          #tt2=getTravelTimes(delta=gcarc2, depth=tr2.stats.sac.evdp, model='ak135',phase_list=['P'])[0]['time']
-          tt2=taupmodel.get_travel_times(tr2.stats.sac.evdp, gcarc2, ['P'])[0].time
+            #tt2=getTravelTimes(delta=gcarc2, depth=tr2.stats.sac.evdp, model='ak135',phase_list=['P'])[0]['time']
+            
+            if args.station_db:
+                try:
+                    stel2=stdict[tr2.stats.station]['stel']/1000.
+                except:
+                    print "WARNING: No elevation for station",tr2.stats.station,"in database file",args.station_db,", skipping"
+                    continue
+            else:
+                try:
+                    stel2=tr2.stats.sac.stel/1000.
+                except:
+                    print "WARNING: No elevation for station",tr2.stats.station,"in SAC file",bhz2file,", skipping"
+                    continue
+            
+            ar2=taupmodel.get_travel_times(tr2.stats.sac.evdp, gcarc2, ['P'])[0]
+            in_angle2_rad=np.deg2rad(ar2.incident_angle)
+            #extra travel time due to elevation
+            tt2_pos=np.cos(in_angle2_rad)/top_vel*stel2
+            tt2=ar2.time+tt2_pos
+            
+            if args.verbose:
+                print 'station elevation:',stel2,'incident angle:',ar2.incident_angle,'travel time:',ar2.time,'elevation time:',tt2_pos
+            
         except:
           print "WARNING: Can\'t calculate travel time, skipping (No P arrival for distance:",gcarc2,")",bhz2File
           continue
