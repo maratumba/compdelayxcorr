@@ -5,9 +5,73 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib as mpl
 import re
 import pickle
+from obspy.core import read
+from obspy.core.utcdatetime import UTCDateTime    
+import glob
 
+def plot_shift_wf(delaydict,basedir='',ax1=None):
+    
+    #delaydict=delaydict[1]
+    
+    shift=delaydict['v']['t2del']
+    cc=delaydict['v']['maxval']
+    
+    trim_left=5.8 #12.0
+    trim_right=19.2 #15.6
+    
+    sac1=glob.glob(basedir+'/*/'+delaydict['v']['sac1'])[0]
+    sac2=glob.glob(basedir+'/*/'+delaydict['v']['sac2'])[0]
+    
+    tr1=read(sac1)[0]
+    tr2=read(sac2)[0]
+    tr2_o=tr2.copy()
+    
+    tr1_t1=UTCDateTime(delaydict['v']['starttime'])+trim_left
+    tr1_t2=UTCDateTime(delaydict['v']['endtime'])-trim_right
+    
+    tr2_t1=tr1_t1-shift
+    tr2_t2=tr1_t2-shift
+
+    tr1.data=tr1.data-np.mean(tr1.data[0:100])
+    tr2.data=tr2.data-np.mean(tr2.data[0:100])
+    
+    tr1.trim(tr1_t1,tr1_t2)
+    tr2.trim(tr2_t1,tr2_t2)
+    tr2_o.trim(tr1_t1,tr1_t2)
+    
+    t=tr1.times()
+    
+
+    if not ax1:
+        with plt.style.context('ggplot'):
+            fig1 = plt.figure()
+            ax1 = fig1.add_subplot(111)
+        
+    with plt.style.context('ggplot'):
+
+        ax1.plot(t,tr1.normalize().data,label='tr1')
+        ax1.plot(t,tr2.normalize().data,label='tr2')
+        #ax1.plot(t,tr2_o.normalize().data,label='tr2_o')
+        
+        ax1.text(0.01, 0.99,'shift='+str(shift)+'\ncc='+str(cc),
+                 verticalalignment='top', horizontalalignment='left',
+                 transform=ax1.transAxes,
+                 color='black', fontsize=15)
+        
+        
+        ax1.tick_params(
+                        which='both',      # both major and minor ticks are affected
+                        bottom='off',      # ticks along the bottom edge are off
+                        top='off',         # ticks along the top edge are off
+                        left='off',
+                        right='off')
+        plt.legend(frameon=False)
+        plt.show()
+    
+    
 def get_content(re1,dict1):
     
     cont={}
@@ -16,9 +80,9 @@ def get_content(re1,dict1):
             cont[key]=dict1[key]
     return cont
 
-def plot_delays(delaydict):
+def plot_delays(delaydict,key,outfile=None):
     
-    deldels=delaydict['deldel']
+    deldels=delaydict['v']['deldel']
     mean=np.mean(deldels)
     std=np.std(deldels)
     
@@ -48,9 +112,15 @@ def plot_delays(delaydict):
     ax1.plot([xmin,xmax],[mean,mean],'k-',alpha=0.5)
     
     ax1.plot(range(1,len(deldels)+1),deldels,'o')
-
-    
-    plt.show()
+    ax1.set_title(key.split('_')[0]+'-'+key.split('_')[1])
+    ax1.text(0.5, 0.95,'mean='+str(mean)+'\nstd='+str(std),
+             verticalalignment='top', horizontalalignment='center',
+             transform=ax1.transAxes,
+             color='green', fontsize=15)
+    if outfile:
+        fig1.savefig(outfile)
+    else:
+        plt.show()
 
 def plot_delays_ensemble(delaydict):
     pass
@@ -67,21 +137,97 @@ def shed_outliers(delaydict,col='deldel',std_lim=1,n_iter=2):
     
     d=delaydict.copy()
     
+    #print np.mean(d['v'][col])
+    
     for step in range(n_iter):
-        mean=np.mean(d[col])
-        std=np.std(d[col])
-        d2=np.array([],dtype=d.dtype)
-        for r in d:
+        #print step
+        mean=np.mean(d['v'][col])
+        std=np.std(d['v'][col])
+        d2={'v':np.array([],dtype=d['v'].dtype)}
+        for r in d['v']:
             if r[col]>mean-std*std_lim and r[col]<mean+std*std_lim:
-                d2=np.append(d2,np.array(r,dtype=d.dtype))
-        d=d2
+                d2['v']=np.append(d2['v'],np.array(r,dtype=d['v'].dtype))
+       #print d
+        #print d2
+        d2['mean']=np.mean(d2['v'][col])
+        d2['std']=np.std(d2['v'][col])
+        
+        d['v']=d2['v']
+        d['mean']=d2['mean']
+        d['std']=d2['std']
     
     return d
             
+def parse_station_info(stinfo_file):
+    stdict={}
+    colnames=['stla','stlo','stel']
+    dtypes=['f4','f4','f4']
+    dtype=zip(colnames,dtypes)
     
+    with open(stinfo_file) as f:
+        for line in f.readlines():
+            line=line.split()
+            stinfo=np.array(tuple(line[1:4]),dtype=dtype)
+            stdict[line[0]]=stinfo
     
+    return stdict
     
+def plot_profiles_ref(delaydict,stdict):
     
+    mpl.style.use('ggplot')
+    
+    fig=plt.figure()
+    i=1
+    for c in range(ord('A'),ord('F')+1):
+        keys=get_content(r'D'+chr(c)+r'01_D'+chr(c)+r'.*',delaydict).keys()
+        
+        means=[shed_outliers(delaydict[x])['mean'] for x in keys]
+        stds=[shed_outliers(delaydict[x])['std'] for x in keys]
+        
+        lats=[stdict[x[5:9]]['stla'] for x in keys]
+        
+        means=[x for (y,x) in sorted(zip(keys,means))]
+        stds=[x for (y,x) in sorted(zip(keys,stds))]
+        lats=[x for (y,x) in sorted(zip(keys,lats))]
+               
+        
+        ax=plt.subplot(6,1,i)
+        baseline,=plt.plot(lats,means)#,label='D'+chr(c))
+        lc=baseline.get_color()
+        plt.fill_between(lats, np.array(means)-np.array(stds), np.array(means)+np.array(stds),alpha=0.2,facecolor=lc)
+
+        
+        ax.set_ylim(-0.4,0.4)
+    
+        plt.tick_params(
+                    which='both',      # both major and minor ticks are affected
+                    bottom='off',      # ticks along the bottom edge are off
+                    top='off',         # ticks along the top edge are off
+                    left='off',
+                    right='off')
+        
+        plt.suptitle('Deldel wrt station 01 in each line')
+        
+        ax.text(0.99, 0.95,'D'+chr(c),
+                verticalalignment='top', horizontalalignment='right',
+                transform=ax.transAxes,
+                color='black', fontsize=15)
+        
+        #ax.set_yticks([-0.4,-0.2,0,0.2,0.4],['-0.4','','0.0','','0.4'])
+        
+        if i!=6:
+            ax.axes.get_xaxis().set_ticklabels([])
+        
+        if i==6:
+            plt.xlabel('Latitude (deg)')
+            plt.ylabel('Mean deldel (s)')
+        
+        plt.yticks([-0.4,-0.2,0,0.2,0.4],['-0.4','','0.0','','0.4'])
+        
+        plt.legend(frameon=False)
+        i+=1
+        
+    plt.show()
 
 if __name__=='__main__':
     
@@ -94,8 +240,8 @@ if __name__=='__main__':
     
     delaydict={}
     
-    colnames=['t1del','t2del','deldel','maxval','baz']
-    dtypes=['f4','f4','f4','f4','f4']
+    colnames=['t1del','t2del','deldel','maxval','baz','sac1','sac2','starttime','endtime']
+    dtypes=['f4','f4','f4','f4','f4','S40','S40','S40','S40']
     dtype=zip(colnames,dtypes)
     
     #parse and gather txt files
@@ -104,16 +250,20 @@ if __name__=='__main__':
             for line in f.readlines():
                 line=line.split()
                 if line[0]+"_"+line[1] not in delaydict:
-                    delaydict[line[0]+"_"+line[1]]=np.array([],dtype=dtype)
+                    delaydict[line[0]+"_"+line[1]]={'v':np.array([],dtype=dtype)}
                 #if line[1] not in delaydict[line[0]]:
                 #    delaydict[line[0]][line[1]]=np.array([],dtype=dtype)
                 
-                deldel=np.array(tuple(line[2:6]+[line[-1]]),dtype=dtype)
-                delaydict[line[0]+"_"+line[1]]=np.append(delaydict[line[0]+"_"+line[1]],deldel)
+                deldel=np.array(tuple(line[2:6]+[line[-1]]+line[6:10]),dtype=dtype)
+                delaydict[line[0]+"_"+line[1]]['v']=np.append(delaydict[line[0]+"_"+line[1]]['v'],deldel)
            
-
+    
+    for pair in delaydict:
+        delaydict[pair]['mean']=np.mean(delaydict[pair]['v']['deldel'])
+        delaydict[pair]['std']=np.std(delaydict[pair]['v']['deldel'])
+        
     pickle.dump(delaydict,open('delays_collected.pickle','wb'))
-             
+    stdict=parse_station_info('station_info.txt')    
     #for st1 in delaydict:
     #    for st2 in delaydict[st1]:
     #        print delaydict[st1][st2]
