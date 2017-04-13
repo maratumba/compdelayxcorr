@@ -125,6 +125,33 @@ def plot_delays(delaydict,key,outfile=None):
 def plot_delays_ensemble(delaydict):
     pass
 
+def shed_bad_corr(delaydict,corr_lim=0.6):
+    '''
+    Returns an array without the outliers.
+    std_lim -> threshold as std factor
+    n_iter -> number of iterations
+    col -> name of the colon in the input numpy array 
+    '''
+    
+    d=delaydict.copy()
+    
+    #print np.mean(d['v'][col])
+    
+
+    d2={'v':np.array([],dtype=d['v'].dtype)}
+
+    for r in d['v']:
+        if r['maxval']>corr_lim:
+            d2['v']=np.append(d2['v'],np.array(r,dtype=d['v'].dtype))
+
+    d2['mean']=np.mean(d2['v']['deldel'])
+    d2['std']=np.std(d2['v']['deldel'])
+    
+    d['v']=d2['v']
+    d['mean']=d2['mean']
+    d['std']=d2['std']
+    
+    return d
 
 def shed_outliers(delaydict,col='deldel',std_lim=1,n_iter=2):
     '''
@@ -205,8 +232,8 @@ def plot_profiles_ref(delaydict,stdict):
     for c in range(ord('A'),ord('F')+1):
         keys=get_content(r'D'+chr(c)+r'01_D'+chr(c)+r'.*',delaydict).keys()
         
-        means=[shed_outliers(delaydict[x])['mean'] for x in keys]
-        stds=[shed_outliers(delaydict[x])['std'] for x in keys]
+        means=[shed_outliers(shed_bad_corr(delaydict[x],corr_lim=0.7),std_lim=4,n_iter=1)['mean'] for x in keys]
+        stds=[shed_outliers(shed_bad_corr(delaydict[x],corr_lim=0.7),std_lim=4,n_iter=1)['std'] for x in keys]
         
         lats=[stdict[x[5:9]]['stla'] for x in keys]
         
@@ -217,6 +244,7 @@ def plot_profiles_ref(delaydict,stdict):
         
         ax=plt.subplot(6,1,i)
         baseline,=plt.plot(lats,means)#,label='D'+chr(c))
+        ticks=plt.plot(lats,means,'o')
         lc=baseline.get_color()
         plt.fill_between(lats, np.array(means)-np.array(stds), np.array(means)+np.array(stds),alpha=0.2,facecolor=lc)
 
@@ -264,8 +292,8 @@ if __name__=='__main__':
     
     delaydict={}
     
-    colnames=['t1del','t2del','deldel','maxval','baz','sac1','sac2','starttime','endtime']
-    dtypes=['f4','f4','f4','f4','f4','S40','S40','S40','S40']
+    colnames=['t1del','t2del','deldel','maxval','sac1','sac2','starttime','endtime','ar1','ar2','baz']
+    dtypes=['f4','f4','f4','f4','S40','S40','S40','S40','S40','S40','f4']
     dtype=zip(colnames,dtypes)
     
     #parse and gather txt files
@@ -278,7 +306,8 @@ if __name__=='__main__':
                 #if line[1] not in delaydict[line[0]]:
                 #    delaydict[line[0]][line[1]]=np.array([],dtype=dtype)
                 
-                deldel=np.array(tuple(line[2:6]+[line[-1]]+line[6:10]),dtype=dtype)
+                # horrendous parsing:
+                deldel=np.array(tuple(line),dtype=dtype)
                 delaydict[line[0]+"_"+line[1]]['v']=np.append(delaydict[line[0]+"_"+line[1]]['v'],deldel)
            
     

@@ -29,6 +29,11 @@ import pickle
 VEL_MODEL_FILE_NPZ='/Users/gulyamani/research/faultLab/sakarya.npz'
 VEL_MODEL_FILE_TVEL='/Users/gulyamani/research/faultLab/sakarya.tvel'
 
+#307030
+
+#1124307030
+
+#68587024
 
 def haversine(lat1,lon1,lat2,lon2):
     """
@@ -345,6 +350,8 @@ if __name__=='__main__':
             delaydict[tr1.stats.station][tr2.stats.station]['sac2']=bhz2File
             delaydict[tr1.stats.station][tr2.stats.station]['starttime']=tr1.stats.starttime
             delaydict[tr1.stats.station][tr2.stats.station]['endtime']=tr1.stats.endtime
+            delaydict[tr1.stats.station][tr2.stats.station]['ar1']=tr1.stats.sac.t1
+            delaydict[tr1.stats.station][tr2.stats.station]['ar2']=tr2.stats.sac.t1
             try:
                 delaydict[tr1.stats.station][tr2.stats.station]['baz']=tr1.stats.sac.baz
             except:
@@ -381,6 +388,8 @@ if __name__=='__main__':
                 line.append(delaydict[st1][st2]['sac2'])
                 line.append(delaydict[st1][st2]['starttime'])
                 line.append(delaydict[st1][st2]['endtime'])
+                line.append(delaydict[st1][st2]['ar1'])
+                line.append(delaydict[st1][st2]['ar2'])
                 line.append(delaydict[st1][st2]['baz'])
                 #print st1,st2,delaydict[st1][st2][valname]
                     #break
