@@ -145,7 +145,7 @@ def shed_outliers(delaydict,col='deldel',std_lim=1,n_iter=2):
         std=np.std(d['v'][col])
         d2={'v':np.array([],dtype=d['v'].dtype)}
         for r in d['v']:
-            if r[col]>mean-std*std_lim and r[col]<mean+std*std_lim:
+            if r[col]>mean-std*std_lim and r[col]<mean+std*std_lim and std!=0:
                 d2['v']=np.append(d2['v'],np.array(r,dtype=d['v'].dtype))
        #print d
         #print d2
@@ -171,7 +171,31 @@ def parse_station_info(stinfo_file):
             stdict[line[0]]=stinfo
     
     return stdict
+
+def print_grid_ref(delaydict,stdict,refst='DA01',outfile=None,do_shed_outliers=True):
+
     
+    keys=get_content(refst+r'_.*',delaydict).keys()
+    
+    if outfile:
+        of=open(outfile,'w')
+    
+    for key in delaydict.keys():
+        if do_shed_outliers:
+            delaydict[key]=shed_outliers(delaydict[key])
+            
+        mean=delaydict[key]['mean']
+        stname=key.split('_')[1]
+        outstr=' '.join([stname,str(stdict[stname]['stlo']),str(stdict[stname]['stla']),str(mean)])
+        if not outfile:
+            print outstr
+        else:
+            of.write(outstr+'\n')  
+    
+    if outfile:
+        of.close()
+
+
 def plot_profiles_ref(delaydict,stdict):
     
     mpl.style.use('ggplot')
@@ -263,7 +287,7 @@ if __name__=='__main__':
         delaydict[pair]['std']=np.std(delaydict[pair]['v']['deldel'])
         
     pickle.dump(delaydict,open('delays_collected.pickle','wb'))
-    stdict=parse_station_info('station_info.txt')    
+    #stdict=parse_station_info('station_info.txt')    
     #for st1 in delaydict:
     #    for st2 in delaydict[st1]:
     #        print delaydict[st1][st2]
