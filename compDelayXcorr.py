@@ -358,38 +358,38 @@ if __name__=='__main__':
                 sys.exit()
                 continue
 
-        maxInd,maxval=obspy.signal.cross_correlation.xcorr(crossData1,crossData2,shiftlen)
+            maxInd,maxval=obspy.signal.cross_correlation.xcorr(crossData1,crossData2,shiftlen)
 
-        t2del=maxInd*crossDelta
-        t1del=tr1.stats.sac.t1 - tr2.stats.sac.t1
+            t2del=maxInd*crossDelta
+            t1del=tr1.stats.sac.t1 - tr2.stats.sac.t1
 
-        deldel=t2del-t1del
-        #delays.append([tr1.__str__(),tr2.__str__(),tr1.stats.station,tr2.stats.station,t2del,t1del,deldel,maxval])
-        #stcut.append(tr2)
-        #pairstr=tr1.stats.station+'_'+tr2.stats.station
+            deldel=t2del-t1del
+            #delays.append([tr1.__str__(),tr2.__str__(),tr1.stats.station,tr2.stats.station,t2del,t1del,deldel,maxval])
+            #stcut.append(tr2)
+            #pairstr=tr1.stats.station+'_'+tr2.stats.station
 
-        if tr2.stats.station not in delaydict[tr1.stats.station]:
-            delaydict[tr1.stats.station][tr2.stats.station]={}
-            delaydict[tr1.stats.station][tr2.stats.station]['t1del']=t1del
-            delaydict[tr1.stats.station][tr2.stats.station]['t2del']=t2del
-            delaydict[tr1.stats.station][tr2.stats.station]['deldel']=deldel
-            delaydict[tr1.stats.station][tr2.stats.station]['maxval']=maxval
-            delaydict[tr1.stats.station][tr2.stats.station]['sac1']=bhz1File
-            delaydict[tr1.stats.station][tr2.stats.station]['sac2']=bhz2File
-            delaydict[tr1.stats.station][tr2.stats.station]['starttime']=tr1.stats.starttime
-            delaydict[tr1.stats.station][tr2.stats.station]['endtime']=tr1.stats.endtime
-            delaydict[tr1.stats.station][tr2.stats.station]['ar1']=tr1.stats.sac.t1
-            delaydict[tr1.stats.station][tr2.stats.station]['ar2']=tr2.stats.sac.t1
-            try:
-                delaydict[tr1.stats.station][tr2.stats.station]['baz']=tr1.stats.sac.baz
-            except:
-                if args.verbose:
-                    print "WARNING: No BAZ in SAC file",bhz1File
-                delaydict[tr1.stats.station][tr2.stats.station]['baz']=-12345
+            if tr2.stats.station not in delaydict[tr1.stats.station]:
+                delaydict[tr1.stats.station][tr2.stats.station]={}
+                delaydict[tr1.stats.station][tr2.stats.station]['t1del']=t1del
+                delaydict[tr1.stats.station][tr2.stats.station]['t2del']=t2del
+                delaydict[tr1.stats.station][tr2.stats.station]['deldel']=deldel
+                delaydict[tr1.stats.station][tr2.stats.station]['maxval']=maxval
+                delaydict[tr1.stats.station][tr2.stats.station]['sac1']=bhz1File
+                delaydict[tr1.stats.station][tr2.stats.station]['sac2']=bhz2File
+                delaydict[tr1.stats.station][tr2.stats.station]['starttime']=tr1.stats.starttime
+                delaydict[tr1.stats.station][tr2.stats.station]['endtime']=tr1.stats.endtime
+                delaydict[tr1.stats.station][tr2.stats.station]['ar1']=tr1.stats.sac.t1
+                delaydict[tr1.stats.station][tr2.stats.station]['ar2']=tr2.stats.sac.t1
+                try:
+                    delaydict[tr1.stats.station][tr2.stats.station]['baz']=tr1.stats.sac.baz
+                except:
+                    if args.verbose:
+                        print "WARNING: No BAZ in SAC file",bhz1File
+                    delaydict[tr1.stats.station][tr2.stats.station]['baz']=-12345
 
-            delaydict[tr1.stats.station][tr2.stats.station]['gcarc1']=gcarc1
-        else:
-            print "WARNING: station pair",tr1.stats.station,tr2.stats.station,"already in record"
+                delaydict[tr1.stats.station][tr2.stats.station]['gcarc1']=gcarc1
+            else:
+                print "WARNING: station pair",tr1.stats.station,tr2.stats.station,"already in record"
 
 
         if args.verbose:
