@@ -380,6 +380,7 @@ if __name__=='__main__':
                 delaydict[tr1.stats.station][tr2.stats.station]['endtime']=tr1.stats.endtime
                 delaydict[tr1.stats.station][tr2.stats.station]['ar1']=tr1.stats.sac.t1
                 delaydict[tr1.stats.station][tr2.stats.station]['ar2']=tr2.stats.sac.t1
+
                 try:
                     delaydict[tr1.stats.station][tr2.stats.station]['baz']=tr1.stats.sac.baz
                 except:
@@ -388,6 +389,9 @@ if __name__=='__main__':
                     delaydict[tr1.stats.station][tr2.stats.station]['baz']=-12345
 
                 delaydict[tr1.stats.station][tr2.stats.station]['gcarc1']=gcarc1
+                delaydict[tr1.stats.station][tr2.stats.station]['gcarc2']=gcarc2
+                delaydict[tr1.stats.station][tr2.stats.station]['incident_angle_rad_1']=in_angle1_rad
+                delaydict[tr1.stats.station][tr2.stats.station]['incident_angle_rad_2']=in_angle2_rad
             else:
                 print "WARNING: station pair",tr1.stats.station,tr2.stats.station,"already in record"
 
@@ -419,6 +423,9 @@ if __name__=='__main__':
                 line.append(delaydict[st1][st2]['ar1'])
                 line.append(delaydict[st1][st2]['ar2'])
                 line.append(delaydict[st1][st2]['baz'])
+                line.append(delaydict[st1][st2]['incident_angle_rad_1'])
+                line.append(delaydict[st1][st2]['incident_angle_rad_2'])
+
                 #print st1,st2,delaydict[st1][st2][valname]
                     #break
                 f.write(" ".join(map(str,line))+"\n")
