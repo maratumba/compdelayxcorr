@@ -303,7 +303,7 @@ if __name__=='__main__':
             for line in f.readlines():
                 line=line.split()
                 if len(line)!=len(dtype)+2:
-                    print('Number of columns {} is different than {}, skipping file {}'.format(len(line),len(dtype),txt_file))
+                    print('Number of columns {} is different than {}, skipping file {}'.format(len(line),len(dtype)+2,txt_file))
                     break
                 try:
                     if line[0]+"_"+line[1] not in delaydict:
