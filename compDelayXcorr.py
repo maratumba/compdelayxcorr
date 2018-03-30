@@ -204,10 +204,10 @@ if __name__=='__main__':
         tvel_file_1=TVEL_DIR+tr1.stats.station+TVEL_SUFFIX
         npz_file_1=NPZ_DIR+tr1.stats.station+NPZ_SUFFIX
 
-        if args.verbose:
-            print "reading tvel file:",
-        with open(tvel_file_1,'r') as f:
-            s=f.readlines()
+        # if args.verbose:
+        #     print "reading tvel file:",
+        # with open(tvel_file_1,'r') as f:
+        #     s=f.readlines()
 
         #get top P velocity
         top_vel=float(s[2].split()[1])
