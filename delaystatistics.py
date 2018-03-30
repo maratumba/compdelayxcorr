@@ -313,7 +313,7 @@ if __name__=='__main__':
                     deldel=np.array(tuple(line[2:]),dtype=dtype)
                     delaydict[line[0]+"_"+line[1]]['v']=np.append(delaydict[line[0]+"_"+line[1]]['v'],deldel)
                 except:
-                    print('Problem reading line {} from file {}'.format(line,txt_file            
+                    print('Problem reading line {} from file {}'.format(line,txt_file))          
 
 
     for pair in delaydict:
