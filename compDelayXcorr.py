@@ -201,7 +201,7 @@ if __name__=='__main__':
         tr1.data=tr1.data-tr1.stats.sac.depmen
 
         #read station vel model file:
-        tvel_file_1=TVEL_DIR+tr1.stats.station+TVEL_SUFFIX
+        # tvel_file_1=TVEL_DIR+tr1.stats.station+TVEL_SUFFIX
         npz_file_1=NPZ_DIR+tr1.stats.station+NPZ_SUFFIX
 
         # if args.verbose:
@@ -293,7 +293,7 @@ if __name__=='__main__':
             tr2=st2[0]
 
             #read station vel model file:
-            tvel_file_2=TVEL_DIR+tr2.stats.station+TVEL_SUFFIX
+            # tvel_file_2=TVEL_DIR+tr2.stats.station+TVEL_SUFFIX
             npz_file_2=NPZ_DIR+tr2.stats.station+NPZ_SUFFIX
 
             #create travel time calculator object
