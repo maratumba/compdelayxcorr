@@ -206,8 +206,14 @@ if __name__=='__main__':
 
         if args.verbose:
             print "reading tvel file:",
-        with open(tvel_file_1,'r') as f:
+
+        try:
+            f=open(tvel_file_1,'r')f:
             s=f.readlines()
+            f.close()
+        except:
+            print 'Failed to read tvel velocity model file {}, skipping.'.format(tvel_file_1)
+            continue
 
         #get top P velocity
         top_vel=float(s[2].split()[1])
