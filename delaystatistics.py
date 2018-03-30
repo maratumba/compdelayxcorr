@@ -302,9 +302,10 @@ if __name__=='__main__':
         with open(txt_file,'r') as f:
             for line in f.readlines():
                 line=line.split()
+                if len(line)!=len(dtype)+2:
+                    print('Number of columns {} is different than {}, skipping file {}'.format(len(line),len(dtype),txt_file))
+                    break
                 try:
-                    if len(line)!=len(dtype):
-                        print('Number of columns is weird in {}, skipping file {}'.format(line,txt_file))
                     if line[0]+"_"+line[1] not in delaydict:
                         delaydict[line[0]+"_"+line[1]]={'v':np.array([],dtype=dtype)}
                     #if line[1] not in delaydict[line[0]]:
