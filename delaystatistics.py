@@ -303,6 +303,8 @@ if __name__=='__main__':
             for line in f.readlines():
                 line=line.split()
                 try:
+                    if len(line)!=len(dtype):
+                        print('Number of columns is weird in {}, skipping file {}'.format(line,txt_file))
                     if line[0]+"_"+line[1] not in delaydict:
                         delaydict[line[0]+"_"+line[1]]={'v':np.array([],dtype=dtype)}
                     #if line[1] not in delaydict[line[0]]:
@@ -313,7 +315,7 @@ if __name__=='__main__':
                     deldel=np.array(tuple(line[2:]),dtype=dtype)
                     delaydict[line[0]+"_"+line[1]]['v']=np.append(delaydict[line[0]+"_"+line[1]]['v'],deldel)
                 except:
-                    print('Problem reading line {} from file {}'.format(line,txt_file))          
+                    print('Problem reading line {} from file {}'.format(line,txt_file))
 
 
     for pair in delaydict:
