@@ -307,7 +307,7 @@ if __name__=='__main__':
                 #    delaydict[line[0]][line[1]]=np.array([],dtype=dtype)
 
                 # horrendous parsing:
-                deldel=np.array(tuple(line),dtype=dtype)
+                deldel=np.array(tuple(line[2:]),dtype=dtype)
                 delaydict[line[0]+"_"+line[1]]['v']=np.append(delaydict[line[0]+"_"+line[1]]['v'],deldel)
 
 
