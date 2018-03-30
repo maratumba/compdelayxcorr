@@ -302,17 +302,18 @@ if __name__=='__main__':
         with open(txt_file,'r') as f:
             for line in f.readlines():
                 line=line.split()
-                if line[0]+"_"+line[1] not in delaydict:
-                    delaydict[line[0]+"_"+line[1]]={'v':np.array([],dtype=dtype)}
-                #if line[1] not in delaydict[line[0]]:
-                #    delaydict[line[0]][line[1]]=np.array([],dtype=dtype)
-
-                # horrendous parsing:
                 try:
+                    if line[0]+"_"+line[1] not in delaydict:
+                        delaydict[line[0]+"_"+line[1]]={'v':np.array([],dtype=dtype)}
+                    #if line[1] not in delaydict[line[0]]:
+                    #    delaydict[line[0]][line[1]]=np.array([],dtype=dtype)
+
+                    # horrendous parsing:
+
                     deldel=np.array(tuple(line[2:]),dtype=dtype)
                     delaydict[line[0]+"_"+line[1]]['v']=np.append(delaydict[line[0]+"_"+line[1]]['v'],deldel)
                 except:
-                    print('Problem reading line {} from file {}'.format(line,txt_file))
+                    print('Problem reading line {} from file {}'.format(line,txt_file            
 
 
     for pair in delaydict:
