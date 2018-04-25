@@ -114,6 +114,63 @@ def parseStationDb(stationDbFile):
 
     return stdict
 
+def plot_profiles_ref(delaydict,stdict):
+
+    mpl.style.use('ggplot')
+
+    fig=plt.figure()
+    i=1
+    for c in range(ord('A'),ord('F')+1):
+        keys=get_content(r'D'+chr(c)+r'01_D'+chr(c)+r'.*',delaydict).keys()
+
+        means=[shed_outliers(shed_bad_corr(delaydict[x],corr_lim=0.7),std_lim=4,n_iter=1)['mean'] for x in keys]
+        stds=[shed_outliers(shed_bad_corr(delaydict[x],corr_lim=0.7),std_lim=4,n_iter=1)['std'] for x in keys]
+
+        lats=[stdict[x[5:9]]['stla'] for x in keys]
+
+        means=[x for (y,x) in sorted(zip(keys,means))]
+        stds=[x for (y,x) in sorted(zip(keys,stds))]
+        lats=[x for (y,x) in sorted(zip(keys,lats))]
+
+
+        ax=plt.subplot(6,1,i)
+        baseline,=plt.plot(lats,means)#,label='D'+chr(c))
+        ticks=plt.plot(lats,means,'o')
+        lc=baseline.get_color()
+        plt.fill_between(lats, np.array(means)-np.array(stds), np.array(means)+np.array(stds),alpha=0.2,facecolor=lc)
+
+
+        ax.set_ylim(-0.4,0.4)
+
+        plt.tick_params(
+                    which='both',      # both major and minor ticks are affected
+                    bottom='off',      # ticks along the bottom edge are off
+                    top='off',         # ticks along the top edge are off
+                    left='off',
+                    right='off')
+
+        plt.suptitle('Deldel wrt station 01 in each line')
+
+        ax.text(0.99, 0.95,'D'+chr(c),
+                verticalalignment='top', horizontalalignment='right',
+                transform=ax.transAxes,
+                color='black', fontsize=15)
+
+        #ax.set_yticks([-0.4,-0.2,0,0.2,0.4],['-0.4','','0.0','','0.4'])
+
+        if i!=6:
+            ax.axes.get_xaxis().set_ticklabels([])
+
+        if i==6:
+            plt.xlabel('Latitude (deg)')
+            plt.ylabel('Mean deldel (s)')
+
+        plt.yticks([-0.4,-0.2,0,0.2,0.4],['-0.4','','0.0','','0.4'])
+
+        plt.legend(frameon=False)
+        i+=1
+
+    plt.show()
 
 if __name__=='__main__':
 
@@ -208,7 +265,7 @@ if __name__=='__main__':
             print "reading tvel file:",
 
         try:
-            f=open(tvel_file_1,'r')f:
+            f=open(tvel_file_1,'r')
             s=f.readlines()
             f.close()
         except:
